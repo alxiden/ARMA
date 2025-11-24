@@ -24,6 +24,8 @@ def corePage(root):
     tk.Label(general_frame, text="Rule ID:", font=("Arial", 12)).grid(column=0, row=0, sticky="w", padx=5, pady=2)
     id_entry = tk.Entry(general_frame, width=30)
     id_entry.grid(column=1, row=0, padx=5, pady=2)
+    # Default Rule ID
+    id_entry.insert(0, "100001")
 
     tk.Label(general_frame, text="Level:", font=("Arial", 12)).grid(column=0, row=1, sticky="w", padx=5, pady=2)
     level_entry = tk.Entry(general_frame, width=30)
@@ -40,17 +42,6 @@ def corePage(root):
     tk.Label(general_frame, text="Mitre:", font=("Arial", 12)).grid(column=0, row=4, sticky="w", padx=5, pady=2)
     mitre_entry = tk.Entry(general_frame, width=30)
     mitre_entry.grid(column=1, row=4, padx=5, pady=2)
-    
-    # SIEM selection checkboxes
-    tk.Label(general_frame, text="Target SIEMs:", font=("Arial", 12)).grid(column=0, row=5, sticky="w", padx=5, pady=6)
-    siem_frame = ttk.Frame(general_frame)
-    siem_frame.grid(column=1, row=5, sticky='w', padx=5, pady=6)
-    wazuh_var = tk.BooleanVar(value=True)
-    elastic_var = tk.BooleanVar(value=False)
-    splunk_var = tk.BooleanVar(value=False)
-    tk.Checkbutton(siem_frame, text='Wazuh', variable=wazuh_var).pack(side='left')
-    tk.Checkbutton(siem_frame, text='Elastic', variable=elastic_var).pack(side='left')
-    tk.Checkbutton(siem_frame, text='Splunk', variable=splunk_var).pack(side='left')
 
     net_widgets = networking.populate(network_frame)
     hashes_widgets = hashes.populate(hashes_frame)
@@ -63,15 +54,17 @@ def corePage(root):
         vals['program_name'] = name_entry.get().strip()
         vals['description'] = description_entry.get().strip()
         vals['mitre'] = mitre_entry.get().strip()
-        vals['siem_wazuh'] = bool(wazuh_var.get())
-        vals['siem_elastic'] = bool(elastic_var.get())
-        vals['siem_splunk'] = bool(splunk_var.get())
 
         # Networking
         vals['protocol'] = net_widgets['protocol'].get().strip()
         vals['src_ip'] = net_widgets['src_ip'].get().strip()
         vals['dst_ip'] = net_widgets['dst_ip'].get().strip()
         vals['port'] = net_widgets['port'].get().strip()
+        # New networking fields
+        vals['domain'] = net_widgets.get('domain').get().strip()
+        vals['http_path'] = net_widgets.get('http_path').get().strip()
+        vals['http_method'] = net_widgets.get('http_method').get().strip()
+        vals['user_agent'] = net_widgets.get('user_agent').get().strip()
 
         # Hashes
         # Combobox and entries both support .get()

@@ -8,7 +8,7 @@ import validator
 def app():
     root = tk.Tk()
     root.title("ARMA Application")
-    root.geometry("400x320")
+    root.geometry("400x400")
 
     title = tk.Label(root, text="Welcome to the ARMA Application!", font=("Arial", 16))
     title.grid(column=0, row=0, padx=20, pady=20, columnspan=2)
@@ -20,7 +20,7 @@ def app():
     def show_rule_popup(text: str):
         popup = tk.Toplevel(root)
         popup.title("Generated Wazuh Rule")
-        popup.geometry("700x500")
+        popup.geometry("700x400")
 
         tk.Label(popup, text="Copy the XML below into your Wazuh rules file:", font=("Arial", 11)).pack(padx=8, pady=8, anchor='w')
 
@@ -46,19 +46,8 @@ def app():
             messagebox.showerror("Validation Error", "\n".join(errors))
             return
 
-        outputs = rule_builder.build_rules_for_selected(vals)
-        if not outputs:
-            messagebox.showerror("No SIEM Selected", "Please select at least one target SIEM to generate a rule for.")
-            return
-
-        # Combine outputs into a single text blob with headers
-        combined = []
-        for name, text in outputs.items():
-            combined.append(f"===== {name} =====")
-            combined.append(text)
-            combined.append('\n')
-
-        show_rule_popup('\n'.join(combined))
+        rule_xml = rule_builder.build_wazuh_rule(vals)
+        show_rule_popup(rule_xml)
 
     create_button = tk.Button(root, text="Create Rule", font=("Arial", 12), command=on_create)
     create_button.grid(column=0, row=5, columnspan=2, pady=20)

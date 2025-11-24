@@ -85,6 +85,24 @@ def validate_mitre(value: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def validate_domain(value: str) -> Tuple[bool, str]:
+    if not value:
+        return True, ""
+    # simple domain regex (allows subdomains)
+    if re.fullmatch(r"(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,}", value):
+        return True, ""
+    return False, f"Invalid domain: {value}"
+
+
+def validate_http_method(value: str) -> Tuple[bool, str]:
+    if not value:
+        return True, ""
+    allowed = {"GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"}
+    if value.upper() in allowed:
+        return True, ""
+    return False, f"HTTP method must be one of: {', '.join(sorted(allowed))}"
+
+
 def validate_all(vals: dict) -> Tuple[bool, List[str]]:
     errors: List[str] = []
 
@@ -113,6 +131,15 @@ def validate_all(vals: dict) -> Tuple[bool, List[str]]:
         errors.append(msg)
 
     ok, msg = validate_mitre(vals.get('mitre', ''))
+    if not ok:
+        errors.append(msg)
+
+    # New networking-related validations
+    ok, msg = validate_domain(vals.get('domain', ''))
+    if not ok:
+        errors.append(msg)
+
+    ok, msg = validate_http_method(vals.get('http_method', ''))
     if not ok:
         errors.append(msg)
 
