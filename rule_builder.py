@@ -10,8 +10,6 @@ def build_wazuh_rule(vals: dict) -> str:
     program = esc(vals.get('program_name') or '')
     mitre = esc(vals.get('mitre') or '')
 
-    wazuh_fields = ['user', 'srcip', 'dstip', 'srcport', 'dstport', 'protocol', 'url', 'http_method', 'user_agent', 'domain']
-
     parts = []
     parts.append('<group name="custom_rules">')
     parts.append(f'  <rule id="{rule_id}" level="{level}">')
@@ -23,43 +21,19 @@ def build_wazuh_rule(vals: dict) -> str:
     if program:
         parts.append(f'    <field name="program_name">{program}</field>')
 
-    # Conditions: map UI keys to Wazuh field names when possible, otherwise emit <match>
-    ui_to_wazuh = {
-        'src_ip': 'srcip',
-        'dst_ip': 'dstip',
-        'hostname': 'domain',
-        'port': 'dstport',
-        'protocol': 'protocol',
-        'http_path': 'url',
-        'http_method': 'http_method',
-        'user_agent': 'user_agent',
-        'hash_type': 'hash_type',
-        'hash_value': 'hash',
-        'file_path': 'filepath',
-        'behavior_type': 'behavior',
-        'process_name': 'process',
-        'command_line': 'command',
-        'persistence': 'persistence',
-    }
+    # Emit <match> for every non-meta UI field. This simplifies Wazuh compatibility.
+    meta_keys = {'id', 'level', 'description', 'mitre', 'program_name'}
 
-    keys = list(ui_to_wazuh.keys())
-
-    for key in keys:
-        val = vals.get(key)
+    for key, val in vals.items():
+        if key in meta_keys:
+            continue
         if val is None:
             continue
         if isinstance(val, str) and not val.strip():
             continue
 
-        field_name = ui_to_wazuh.get(key)
         parts.append(f'    <!-- {key} -->')
-
-        # If the mapped field name is a known Wazuh field, emit a <field name="..."> tag.
-        if field_name and field_name in wazuh_fields:
-            parts.append(f'    <field name="{field_name}">{esc(val)}</field>')
-        else:
-            # Fallback to a generic match clause
-            parts.append(f'    <match>{esc(val)}</match>')
+        parts.append(f'    <match>{esc(val)}</match>')
 
     parts.append('  </rule>')
     parts.append('</group>')

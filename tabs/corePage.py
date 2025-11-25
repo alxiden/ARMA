@@ -76,9 +76,61 @@ def corePage(root):
         vals['behavior_type'] = behaviour_widgets['behavior_type'].get().strip()
         vals['process_name'] = behaviour_widgets['process_name'].get().strip()
         vals['command_line'] = behaviour_widgets['command_line'].get().strip()
-        # persistence is BooleanVar
-        vals['persistence'] = bool(behaviour_widgets['persistence'].get())
 
         return vals
 
-    return get_values
+    def reset_fields():
+        # Reset general fields
+        try:
+            id_entry.delete(0, 'end')
+            id_entry.insert(0, '100001')
+        except Exception:
+            pass
+        try:
+            level_entry.delete(0, 'end')
+        except Exception:
+            pass
+        try:
+            name_entry.delete(0, 'end')
+        except Exception:
+            pass
+        try:
+            description_entry.delete(0, 'end')
+        except Exception:
+            pass
+        try:
+            mitre_entry.delete(0, 'end')
+        except Exception:
+            pass
+
+        # Networking widgets
+        for w in net_widgets.values():
+            try:
+                if hasattr(w, 'set'):
+                    w.set('')
+                elif hasattr(w, 'delete'):
+                    w.delete(0, 'end')
+            except Exception:
+                pass
+
+        # Hashes widgets
+        for w in hashes_widgets.values():
+            try:
+                if hasattr(w, 'set'):
+                    w.set('')
+                elif hasattr(w, 'delete'):
+                    w.delete(0, 'end')
+            except Exception:
+                pass
+
+        # Behaviour widgets
+        for w in behaviour_widgets.values():
+            try:
+                if hasattr(w, 'set'):
+                    w.set('')
+                elif hasattr(w, 'delete'):
+                    w.delete(0, 'end')
+            except Exception:
+                pass
+
+    return get_values, reset_fields

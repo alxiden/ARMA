@@ -13,7 +13,7 @@ def app():
     title = tk.Label(root, text="Welcome to the ARMA Application!", font=("Arial", 16))
     title.grid(column=0, row=0, padx=20, pady=20, columnspan=2)
 
-    gather = corePage.corePage(root)
+    get_values, reset_fields = corePage.corePage(root)
 
     # Rule generation was moved to `rule_builder.build_wazuh_rule`
 
@@ -40,7 +40,7 @@ def app():
         tk.Button(btn_frame, text="Close", command=popup.destroy).pack(side='right')
 
     def on_create():
-        vals = gather()
+        vals = get_values()
         valid, errors = validator.validate_all(vals)
         if not valid:
             messagebox.showerror("Validation Error", "\n".join(errors))
@@ -50,7 +50,10 @@ def app():
         show_rule_popup(rule_xml)
 
     create_button = tk.Button(root, text="Create Rule", font=("Arial", 12), command=on_create)
-    create_button.grid(column=0, row=5, columnspan=2, pady=20)
+    create_button.grid(column=0, row=5, sticky='e', padx=20, pady=20)
+
+    clear_button = tk.Button(root, text="Clear", font=("Arial", 12), command=reset_fields)
+    clear_button.grid(column=1, row=5, sticky='w', padx=20, pady=20)
 
     root.mainloop()
 
