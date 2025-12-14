@@ -1,42 +1,56 @@
 from xml.sax.saxutils import escape
 
 
-def build_wazuh_rule(vals: dict) -> str:
-    esc = lambda s: escape(str(s))
+def _quote(val: str) -> str:
+    # YARA needs backslashes and quotes escaped inside string literals.
+    return escape(val.replace("\\", "\\\\").replace('"', '\\"'))
 
-    rule_id = esc(vals.get('id') or '100001')
-    level = esc(vals.get('level') or '3')
-    description = esc(vals.get('description') or '')
-    program = esc(vals.get('program_name') or '')
-    mitre = esc(vals.get('mitre') or '')
 
-    parts = []
-    parts.append('<group name="custom_rules">')
-    parts.append(f'  <rule id="{rule_id}" level="{level}">')
+def _format_string(identifier: str, stype: str, value: str) -> str:
+    if stype == "text":
+        return f"    ${identifier} = \"{_quote(value)}\""
+    if stype == "regex":
+        return f"    ${identifier} = /{value}/"
+    # hex
+    normalized = " ".join(value.upper().split())
+    return f"    ${identifier} = {{ {normalized} }}"
 
-    if description:
-        parts.append(f'    <description>{description}</description>')
-    if mitre:
-        parts.append(f'    <mitre>{mitre}</mitre>')
-    if program:
-        parts.append(f'    <field name="program_name">{program}</field>')
 
-    # Emit <match> for every non-meta UI field. This simplifies Wazuh compatibility.
-    meta_keys = {'id', 'level', 'description', 'mitre', 'program_name'}
+def build_yara_rule(vals: dict) -> str:
+    name = vals.get("rule_name", "rule_name").strip()
+    tags_raw = vals.get("tags", "") or ""
+    tags = " ".join(t for t in tags_raw.replace(",", " ").split() if t)
 
-    for key, val in vals.items():
-        if key in meta_keys:
-            continue
-        if val is None:
-            continue
-        if isinstance(val, str) and not val.strip():
-            continue
+    meta = []
+    if vals.get("author"):
+        meta.append(f"    author = \"{_quote(vals['author'])}\"")
+    if vals.get("description"):
+        meta.append(f"    description = \"{_quote(vals['description'])}\"")
+    if vals.get("reference"):
+        meta.append(f"    reference = \"{_quote(vals['reference'])}\"")
 
-        parts.append(f'    <!-- {key} -->')
-        parts.append(f'    <match>{esc(val)}</match>')
+    strings_section = []
+    for s in vals.get("strings", []):
+        strings_section.append(_format_string(s["id"], s["type"], s["value"]))
 
-    parts.append('  </rule>')
-    parts.append('</group>')
+    condition = vals.get("condition") or "any of them"
 
-    return "\n".join(parts)
+    lines = []
+    if tags:
+        lines.append(f"rule {name} : {tags} {{")
+    else:
+        lines.append(f"rule {name} {{")
+
+    if meta:
+        lines.append("  meta:")
+        lines.extend(meta)
+
+    lines.append("  strings:")
+    lines.extend(strings_section)
+
+    lines.append("  condition:")
+    lines.append(f"    {condition}")
+    lines.append("}")
+
+    return "\n".join(lines)
 

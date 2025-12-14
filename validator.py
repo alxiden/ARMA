@@ -1,145 +1,81 @@
 import re
-import ipaddress
 from typing import Tuple, List
 
 
-def _is_int_in_range(value: str, min_v: int, max_v: int) -> bool:
-    try:
-        iv = int(value)
-        return min_v <= iv <= max_v
-    except Exception:
-        return False
-
-
-def validate_id(value: str) -> Tuple[bool, str]:
+def validate_rule_name(value: str) -> Tuple[bool, str]:
     if not value:
-        return False, "Rule ID is required."
-    if not re.fullmatch(r"\d+", value):
-        return False, "Rule ID must be a positive integer."
+        return False, "Rule name is required."
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+        return False, "Rule name must start with a letter/underscore and contain only letters, digits, and underscores."
     return True, ""
 
 
-def validate_level(value: str) -> Tuple[bool, str]:
+def validate_tags(value: str) -> Tuple[bool, str]:
     if not value:
-        return False, "Level is required."
-    if not _is_int_in_range(value, 0, 10):
-        return False, "Level must be an integer between 0 and 10."
+        return True, ""
+    tags = value.replace(",", " ").split()
+    for t in tags:
+        if not re.fullmatch(r"[A-Za-z0-9_+-]+", t):
+            return False, f"Invalid tag: {t}"
     return True, ""
 
 
-def validate_ip(value: str) -> Tuple[bool, str]:
-    if not value:
-        return True, ""  # optional
-    try:
-        # Accept single IP or CIDR
-        try:
-            ipaddress.ip_address(value)
-        except ValueError:
-            ipaddress.ip_network(value, strict=False)
-        return True, ""
-    except Exception:
-        return False, f"Invalid IP or network: {value}"
+def validate_strings(strings: list) -> Tuple[bool, str]:
+    if not strings:
+        return False, "At least one string is required."
 
+    for idx, s in enumerate(strings, start=1):
+        sid = s.get("id", "").strip()
+        stype = s.get("type", "").strip()
+        sval = s.get("value", "").strip()
 
-def validate_port(value: str) -> Tuple[bool, str]:
-    if not value:
-        return True, ""  # optional
-    if not _is_int_in_range(value, 1, 65535):
-        return False, "Port must be an integer between 1 and 65535."
+        if not sid:
+            return False, f"String {idx}: Identifier is required."
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", sid):
+            return False, f"String {idx}: Identifier must be letters, digits, underscores and not start with a digit."
+        if stype not in {"text", "regex", "hex"}:
+            return False, f"String {idx}: Type must be text, regex, or hex."
+        if not sval:
+            return False, f"String {idx}: Value is required."
+
+        if stype == "hex":
+            if not re.fullmatch(r"[0-9A-Fa-f\s]+", sval):
+                return False, f"String {idx}: Hex value may only contain 0-9 A-F and spaces."
+
     return True, ""
 
 
-def validate_hash(hash_type: str, hash_value: str) -> Tuple[bool, str]:
-    if not hash_value and not hash_type:
-        return True, ""
-    if hash_type and not hash_value:
-        return False, "Hash value is required when a hash type is selected."
-    if hash_value and not hash_type:
-        return False, "Hash type is required when a hash value is provided."
+def validate_condition(value: str, strings: list) -> Tuple[bool, str]:
+    if not value:
+        return False, "Condition is required (e.g., any of them)."
 
-    hv = hash_value.strip().lower()
-    if hash_type == "MD5":
-        ok = bool(re.fullmatch(r"[0-9a-f]{32}", hv))
-        msg = "MD5 must be 32 hex characters."
-    elif hash_type == "SHA1":
-        ok = bool(re.fullmatch(r"[0-9a-f]{40}", hv))
-        msg = "SHA1 must be 40 hex characters."
-    elif hash_type == "SHA256":
-        ok = bool(re.fullmatch(r"[0-9a-f]{64}", hv))
-        msg = "SHA256 must be 64 hex characters."
-    else:
-        return False, f"Unknown hash type: {hash_type}"
+    # Simple sanity check: ensure referenced identifiers exist when they look like $id
+    ids = {s.get("id") for s in strings}
+    referenced = set(re.findall(r"\$([A-Za-z_][A-Za-z0-9_]*)", value))
+    missing = referenced - ids
+    if missing:
+        return False, f"Condition references undefined strings: {', '.join(sorted(missing))}"
 
-    if not ok:
-        return False, msg
     return True, ""
-
-
-def validate_mitre(value: str) -> Tuple[bool, str]:
-    if not value:
-        return True, ""
-    parts = [p.strip() for p in value.split(',') if p.strip()]
-    for p in parts:
-        if not re.fullmatch(r"T\d{4}(?:\.\d+)?", p):
-            return False, f"MITRE ID '{p}' is not valid (expected T#### or T####.x)."
-    return True, ""
-
-
-def validate_domain(value: str) -> Tuple[bool, str]:
-    if not value:
-        return True, ""
-    # simple domain regex (allows subdomains)
-    if re.fullmatch(r"(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,}", value):
-        return True, ""
-    return False, f"Invalid domain: {value}"
-
-
-def validate_http_method(value: str) -> Tuple[bool, str]:
-    if not value:
-        return True, ""
-    allowed = {"GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"}
-    if value.upper() in allowed:
-        return True, ""
-    return False, f"HTTP method must be one of: {', '.join(sorted(allowed))}"
 
 
 def validate_all(vals: dict) -> Tuple[bool, List[str]]:
     errors: List[str] = []
 
-    ok, msg = validate_id(vals.get('id', ''))
+    ok, msg = validate_rule_name(vals.get("rule_name", ""))
     if not ok:
         errors.append(msg)
 
-    ok, msg = validate_level(vals.get('level', ''))
+    ok, msg = validate_tags(vals.get("tags", ""))
     if not ok:
         errors.append(msg)
 
-    ok, msg = validate_ip(vals.get('src_ip', ''))
-    if not ok:
-        errors.append(f"Source IP: {msg}")
-
-    ok, msg = validate_ip(vals.get('dst_ip', ''))
-    if not ok:
-        errors.append(f"Destination IP: {msg}")
-
-    ok, msg = validate_port(vals.get('port', ''))
+    strings = vals.get("strings", [])
+    ok, msg = validate_strings(strings)
     if not ok:
         errors.append(msg)
 
-    ok, msg = validate_hash(vals.get('hash_type', ''), vals.get('hash_value', ''))
-    if not ok:
-        errors.append(msg)
-
-    ok, msg = validate_mitre(vals.get('mitre', ''))
-    if not ok:
-        errors.append(msg)
-
-    # New networking-related validations
-    ok, msg = validate_domain(vals.get('domain', ''))
-    if not ok:
-        errors.append(msg)
-
-    ok, msg = validate_http_method(vals.get('http_method', ''))
+    ok, msg = validate_condition(vals.get("condition", ""), strings)
     if not ok:
         errors.append(msg)
 
